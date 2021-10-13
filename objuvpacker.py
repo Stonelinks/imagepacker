@@ -112,6 +112,7 @@ def main():
         if line.startswith("newmtl"):
             name = line[7:]
             # print("\tsaw material name", name)
+			new_mtl_lines.append("newmtl OURMATERIAL")
             if name and name != "None":
                 if len(dmaps) != len(names):
                     # print("\tlast material did not have a diffuse, ignoring")
@@ -120,6 +121,7 @@ def main():
             else:
                 # print("\tignoring 'None' material")
                 continue
+			continue
         elif line.startswith("map_"):
             mtype,m = line.split(" ", 1)
             if mtype.lower() == "map_kd":
@@ -269,7 +271,7 @@ def main():
         elif line.startswith("usemtl"):
             mtl_name = line[7:]
             curr_mtl = mtl_name
-            new_obj_lines.append(line)
+			new_obj_lines.append("usemtl OURMATERIAL")
         elif line.startswith("f"): # face definitions
             for vertex in line[2:].split(): # individual vertex definitions
                 v_def = vertex.split(sep="/")
