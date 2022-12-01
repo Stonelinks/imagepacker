@@ -29,8 +29,10 @@ from pprint import pprint
 # Based off of the great writeup, demo and code at:
 # http://codeincomplete.com/posts/2011/5/7/bin_packing/
 
-class Block():
+
+class Block:
     """A rectangular block, to be packed"""
+
     def __init__(self, w, h, data=None, padding=0):
         self.w = w
         self.h = h
@@ -38,15 +40,17 @@ class Block():
         self.y = None
         self.fit = None
         self.data = data
-        self.padding = padding # not implemented yet
+        self.padding = padding  # not implemented yet
 
     def __str__(self):
         return "({x},{y}) ({w}x{h}): {data}".format(
-            x=self.x,y=self.y, w=self.w,h=self.h, data=self.data)
+            x=self.x, y=self.y, w=self.w, h=self.h, data=self.data
+        )
 
 
-class _BlockNode():
+class _BlockNode:
     """A BlockPacker node"""
+
     def __init__(self, x, y, w, h, used=False, right=None, down=None):
         self.x = x
         self.y = y
@@ -57,20 +61,21 @@ class _BlockNode():
         self.down = down
 
     def __repr__(self):
-        return "({x},{y}) ({w}x{h})".format(x=self.x,y=self.y,w=self.w,h=self.h)
+        return "({x},{y}) ({w}x{h})".format(x=self.x, y=self.y, w=self.w, h=self.h)
 
 
-class BlockPacker():
+class BlockPacker:
     """Packs blocks of varying sizes into a single, larger block"""
+
     def __init__(self):
         self.root = None
 
     def fit(self, blocks):
         nblocks = len(blocks)
-        w = blocks[0].w# if nblocks > 0 else 0
-        h = blocks[0].h# if nblocks > 0 else 0
+        w = blocks[0].w  # if nblocks > 0 else 0
+        h = blocks[0].h  # if nblocks > 0 else 0
 
-        self.root = _BlockNode(0,0, w,h)
+        self.root = _BlockNode(0, 0, w, h)
 
         for block in blocks:
             node = self.find_node(self.root, block.w, block.h)
@@ -99,14 +104,8 @@ class BlockPacker():
 
     def split_node(self, node, w, h):
         node.used = True
-        node.down = _BlockNode(
-            node.x, node.y + h,
-            node.w, node.h - h
-        )
-        node.right = _BlockNode(
-            node.x + w, node.y,
-            node.w - w, h
-        )
+        node.down = _BlockNode(node.x, node.y + h, node.w, node.h - h)
+        node.right = _BlockNode(node.x + w, node.y, node.w - w, h)
         return node
 
     def grow_node(self, w, h):
@@ -114,8 +113,12 @@ class BlockPacker():
         can_grow_right = h <= self.root.h
 
         # try to keep the packing square
-        should_grow_right = can_grow_right and self.root.h >= (self.root.w + w)
-        should_grow_down = can_grow_down and self.root.w >= (self.root.h + h)
+        # add some fuzziness
+        fuzzedRight = abs(self.root.h - self.root.w - w)
+        fuzzedDown = abs(self.root.w - self.root.h - h)
+
+        should_grow_right = can_grow_right and fuzzedRight < 100
+        should_grow_down = can_grow_down and fuzzedDown < 100
 
         if should_grow_right:
             return self.grow_right(w, h)
@@ -131,11 +134,13 @@ class BlockPacker():
     def grow_right(self, w, h):
         old_root = self.root
         self.root = _BlockNode(
-            0, 0,
-            old_root.w + w, old_root.h,
+            0,
+            0,
+            old_root.w + w,
+            old_root.h,
             down=old_root,
             right=_BlockNode(self.root.w, 0, w, self.root.h),
-            used=True
+            used=True,
         )
 
         node = self.find_node(self.root, w, h)
@@ -147,11 +152,13 @@ class BlockPacker():
     def grow_down(self, w, h):
         old_root = self.root
         self.root = _BlockNode(
-            0, 0,
-            old_root.w, old_root.h + h,
+            0,
+            0,
+            old_root.w,
+            old_root.h + h,
             down=_BlockNode(0, self.root.h, self.root.w, h),
             right=old_root,
-            used=True
+            used=True,
         )
 
         node = self.find_node(self.root, w, h)
@@ -165,13 +172,17 @@ def crop_by_extents(image, extent, tile=False, crop=False):
     image = image.convert("RGBA")
     # overlay = Image.new('RGBA', image.size, (255,255,255,0))
 
-    w,h = image.size
-    coords = [math.floor(extent.min_x*w), math.floor(extent.min_y*h),
-              math.ceil(extent.max_x*w), math.ceil(extent.max_y*h)]
+    w, h = image.size
+    coords = [
+        math.floor(extent.min_x * w),
+        math.floor(extent.min_y * h),
+        math.ceil(extent.max_x * w),
+        math.ceil(extent.max_y * h),
+    ]
     # print("\nEXTENT")
     # pprint(extent)
 
-    if min(extent.min_x,extent.min_y) < 0 or max(extent.max_x,extent.max_y) > 1:
+    if min(extent.min_x, extent.min_y) < 0 or max(extent.max_x, extent.max_y) > 1:
         print("\tWARNING! UV Coordinates lying outside of [0:1] space!")
 
     # pprint(coords)
@@ -179,7 +190,9 @@ def crop_by_extents(image, extent, tile=False, crop=False):
     if extent.to_tile:
         h_w, v_w = extent.tiling()
 
-        new_im = Image.new("RGBA", (max(w,math.ceil(h_w*w)), max(h,math.ceil(v_w*h))))
+        new_im = Image.new(
+            "RGBA", (max(w, math.ceil(h_w * w)), max(h, math.ceil(v_w * h)))
+        )
         new_w, new_h = new_im.size
 
         # Iterate through a grid, to place the image to tile it
@@ -212,18 +225,26 @@ def crop_by_extents(image, extent, tile=False, crop=False):
 
     # offset from origin x, y, horizontal scale, vertical scale
     # TODO: use an actual data structure to store this, not a bloody tuple
-    changes = (coords[0], coords[1], changed_w/w, changed_h/h)
+    changes = (coords[0], coords[1], changed_w / w, changed_h / h)
     # pprint(changes)
 
     return (image, changes)
 
-def pack_images(image_paths, background=(0,0,0,0), format="PNG", extents=None, tile=False, crop=False):
+
+def pack_images(
+    image_paths,
+    background=(0, 0, 0, 0),
+    format="PNG",
+    extents=None,
+    tile=False,
+    crop=False,
+):
     images = []
     blocks = []
     image_name_map = {}
 
     image_paths = [path for path in image_paths if path is not None]
-    image_paths.sort() # sort so we get repeatable file ordering, I hope!
+    image_paths.sort()  # sort so we get repeatable file ordering, I hope!
     # pprint(image_paths)
 
     for filename in image_paths:
@@ -241,10 +262,10 @@ def pack_images(image_paths, background=(0,0,0,0), format="PNG", extents=None, t
         images.append(image)
         image_name_map[filename] = image
 
-        w,h = image.size
+        w, h = image.size
         # print(w,h, filename)
         # using filename so we can pass back UV info without storing it in image
-        blocks.append(Block(w,h, data=(filename, changes)))
+        blocks.append(Block(w, h, data=(filename, changes)))
 
     # sort by width, descending (widest first)
     blocks.sort(key=lambda block: -block.w)
@@ -253,6 +274,9 @@ def pack_images(image_paths, background=(0,0,0,0), format="PNG", extents=None, t
     packer.fit(blocks)
 
     output_image = Image.new("RGBA", (packer.root.w, packer.root.h))
+    powerOfTwoX = int(math.pow(2, int(math.log(packer.root.w - 1) / math.log(2)) + 1))
+    powerOfTwoY = int(math.pow(2, int(math.log(packer.root.h - 1) / math.log(2)) + 1))
+    output_image = Image.new("RGBA", (powerOfTwoX, powerOfTwoY))
 
     uv_changes = {}
     for block in blocks:
@@ -262,14 +286,15 @@ def pack_images(image_paths, background=(0,0,0,0), format="PNG", extents=None, t
         uv_changes[fname] = {
             "offset": (
                 # should be in [0, 1] range
-                (block.x - (changes[0] if changes else 0))/output_image.size[0],
+                (block.x - (changes[0] if changes else 0)) / output_image.size[0],
                 # UV origin is bottom left, PIL assumes top left!
-                (block.y - (changes[1] if changes else 0))/output_image.size[1]
+                (block.y - (changes[1] if changes else 0)) / output_image.size[1],
             ),
-
             "aspect": (
-                ((1/changes[2]) if changes else 1) * (image.size[0]/output_image.size[0]),
-                ((1/changes[3]) if changes else 1) * (image.size[1]/output_image.size[1])
+                ((1 / changes[2]) if changes else 1)
+                * (image.size[0] / output_image.size[0]),
+                ((1 / changes[3]) if changes else 1)
+                * (image.size[1] / output_image.size[1]),
             ),
         }
 
